@@ -76,7 +76,7 @@
 
         <!-- Buttons -->
         <div class="flex justify-between w-full mt-auto pt-6">
-          <RouterLink to="/scan">
+          <RouterLink to="/scanmeeting">
             <Button class="bg-[#8CBED6] hover:bg-[#7BB1CA] text-white font-medium px-6">
               Go Back
             </Button>

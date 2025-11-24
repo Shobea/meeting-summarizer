@@ -50,7 +50,6 @@
           <div>
             <label class="font-semibold text-gray-700">Username</label>
             <input
-              v-model="form.username"
               type="text"
               class="w-full mt-1 p-2 rounded-md bg-gray-100 shadow-inner outline-none"
             />
@@ -58,7 +57,6 @@
           <div>
             <label class="font-semibold text-gray-700">Password</label>
             <input
-              v-model="form.password"
               type="password"
               class="w-full mt-1 p-2 rounded-md bg-gray-100 shadow-inner outline-none"
             />
@@ -66,7 +64,6 @@
           <div class="flex justify-center pt-2">
             <button
               class="bg-[var(--dblue)] hover:bg-[var(--mblue)] text-white w-32 rounded-md py-2 cursor-pointer"
-              @click="handleLogin"
             >
               Log In
             </button>
@@ -83,7 +80,8 @@
       <!-- Signup popup -->
       <div v-else-if="type === 'signup'" class="space-y-6">
         <h2 class="text-2xl font-bold text-left">Sign Up</h2>
-        <form @submit.prevent="onSignupSubmit" class="space-y-4">
+
+        <Form :validation-schema="signupSchema" @submit="onSignupSubmit" class="space-y-4">
 
           <FormField v-slot="{ componentField, errorMessage }" name="username">
             <div>
@@ -132,7 +130,8 @@
               Create Account
             </button>
           </div>
-        </form>
+
+        </Form>
 
         <p
           class="text-center text-sm text-gray-600 cursor-pointer hover:underline"
@@ -141,6 +140,7 @@
           Go back to log in page
         </p>
       </div>
+
 
       <!-- Logout -->
       <div v-else-if="type === 'logout'" class="flex flex-col items-center text-center space-y-6">
@@ -165,12 +165,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue"
 import { toast } from "vue-sonner"
 import { z } from "zod"
 import { useForm } from "vee-validate"
 import { toTypedSchema } from "@vee-validate/zod"
-import {  FormField } from "@/components/ui/form"
+import { FormField, Form } from "@/components/ui/form"
+import axios from "axios"
 
 const props = defineProps({
   modelValue: Boolean,
@@ -179,39 +179,47 @@ const props = defineProps({
 })
 const emit = defineEmits(["update:modelValue", "submit", "switch"])
 
-const form = ref({ username: "", password: "", email: "" })
-
-// Reset form when popup opens
-watch(() => props.modelValue, (val) => {
-  if (val) form.value = { username: "", password: "", email: "" }
-})
-
-//  Login (add logic)
-const handleLogin = () => {
-  if (!form.value.username || !form.value.password) {
-    toast.error("Please fill in both fields.")
-    return
-  }
-  toast.success(`Welcome back, ${form.value.username}!`)
-  emit("submit", { ...form.value })
-  emit("update:modelValue", false)
-}
-
-// Signup validation
+// Signup validation schema
 const signupSchema = toTypedSchema(
   z.object({
-    username: z.string().min(3, "Username must be at least 8 characters."),
+    username: z.string().min(8, "Username must be at least 8 characters."),
     email: z.string().email("Invalid email address."),
-    password: z.string().min(6, "Password must be at least 8 characters."),
+    password: z.string().min(8, "Password must be at least 8 characters."),
   })
 )
 
-const { handleSubmit } = useForm({ validationSchema: signupSchema })
+// Signup handler
+const { handleSubmit, setFieldError } = useForm()
 
-// Signup (add logic)
-const onSignupSubmit = handleSubmit((values) => {
-  toast.success(`Account created! Welcome, ${values.username}!`)
-  emit("submit", values)
-  emit("update:modelValue", false)
+const onSignupSubmit = handleSubmit(async (values) => {
+  console.log("SUBMIT FIRED ✅", values) // ← TEST POINT
+
+  try {
+    const response = await axios.post("http://192.168.1.6:8000/api/account-create/", {
+      username: values.username,
+      email: values.email,
+      password: values.password,
+    })
+
+    toast.success(`Account created! Welcome, ${values.username}!`)
+    emit("submit", response.data)
+    emit("update:modelValue", false)
+
+  } catch (error) {
+    console.error("API ERROR:", error.response || error)
+
+    if (error.response?.data?.email) {
+      setFieldError('email', error.response.data.email[0])
+    } else if (error.response?.data?.username) {
+      setFieldError('username', error.response.data.username[0])
+    } else if (error.response?.data?.message) {
+      toast.error(error.response.data.message)
+    } else {
+      toast.error("Signup failed. Please try again.")
+    }
+  }
 })
+
+
+
 </script>

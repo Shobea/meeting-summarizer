@@ -3,7 +3,7 @@
     <!-- Greeting -->
     <h1 class="text-3xl font-bold font-inter">Hello, {{ username }}!</h1>
 
-    <RouterLink to="/scan">
+    <RouterLink to="/scanmeeting">
       <Button
         variant="default"
         class="bg-[var(--dblue)] cursor-pointer hover:bg-[var(--mblue)] text-white"
