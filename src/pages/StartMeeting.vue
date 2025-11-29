@@ -85,6 +85,22 @@
       }"
       @submit="endMeeting"
     />
+
+    <!-- Processing Overlay -->
+    <div
+      v-if="isProcessing"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    >
+      <div class="bg-white rounded-2xl p-8 flex flex-col items-center gap-4 shadow-xl max-w-sm mx-4">
+        <div class="w-12 h-12 border-4 border-[#8CBED6] border-t-transparent rounded-full animate-spin"></div>
+        <h3 class="text-xl font-semibold text-gray-800">Processing Meeting</h3>
+        <p class="text-gray-600 text-center text-sm">
+          Transcribing audio and generating summary...
+          <br />
+          This may take a moment.
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -97,6 +113,8 @@ import WaveformDisplay from '@/components/SectionWaveForm.vue';
 import AudioControls from '@/components/AudioControls.vue';
 import MeetingHeader from '@/components/SectionMeeting.vue';
 import Popup from '@/components/Popup.vue';
+
+import { processMeeting } from '@/services/api';
 
 import trashImage from "@/assets/trash.png";
 import stopImage from "@/assets/stopRecording2.png";
@@ -145,6 +163,8 @@ const audioChunks = ref([]);
 const showDeletePopup = ref(false);
 const showStopPopup = ref(false);
 const showEndMeetingPopup = ref(false);
+const isProcessing = ref(false);
+const processingError = ref(null);
 
 const formattedTime = computed(() => {
   const m = Math.floor(time.value / 60).toString().padStart(2, "0");
@@ -273,14 +293,42 @@ function confirmEndMeeting() {
   showEndMeetingPopup.value = true;
 }
 
-function endMeeting() {
+async function endMeeting() {
   showEndMeetingPopup.value = false;
   clearInterval(timerInterval);
   if (audio) audio.pause();
 
-  //ADD MODEL(?) 
+  // Process the meeting recording with ML models
+  isProcessing.value = true;
+  processingError.value = null;
   
-  // Add transcription and summary here too
+  let transcription = "";
+  let summary = "";
+  let detectedLanguage = "";
+
+  try {
+    // Get the audio blob from recorded chunks
+    if (audioChunks.value.length > 0) {
+      const audioBlob = new Blob(audioChunks.value, { type: "audio/webm" });
+      
+      console.log("Processing meeting recording...");
+      const result = await processMeeting(audioBlob);
+      
+      transcription = result.transcription || "";
+      summary = result.summary || "";
+      detectedLanguage = result.language || "";
+      
+      console.log("Meeting processed successfully:", result);
+    }
+  } catch (error) {
+    console.error("Error processing meeting:", error);
+    processingError.value = error.message || "Failed to process meeting";
+    // Continue saving even if processing fails
+  } finally {
+    isProcessing.value = false;
+  }
+
+  // Save meeting data with transcription and summary
   const dataToSave = {
     meetingID: meetingData.value.meetingID,
     name: meetingData.value.meetingName,
@@ -289,14 +337,14 @@ function endMeeting() {
     audio: audioUrl.value,
     waveImage: meetingData.value.waveImage,
     date: meetingData.value.date,
-    time: meetingData.value.time
+    time: meetingData.value.time,
+    transcription: transcription,
+    summary: summary,
+    language: detectedLanguage
   };
 
-  // Chekcer
-  alert("Data to save to database:\n\n" + JSON.stringify(dataToSave, null, 2));
-
-  // Placeholder for db
-  saveMeetingToDatabase(dataToSave);
+  // Save to database
+  await saveMeetingToDatabase(dataToSave);
 
   router.push("/meetings");
 }

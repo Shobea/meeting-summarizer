@@ -52,12 +52,29 @@
             </div>
           </div>
 
+          <!-- Transcription Section -->
+          <div class="mt-4" v-if="transcriptionText">
+            <h2 class="font-semibold mb-2">Transcription</h2>
+            <div class="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+              <p class="text-gray-700 text-sm whitespace-pre-wrap">
+                {{ transcriptionText }}
+              </p>
+            </div>
+          </div>
+
           <!-- Summary Section -->
           <div class="mt-4">
             <h2 class="font-semibold mb-2">Summary</h2>
-            <p class="text-gray-700 mb-2">
-              {{ summaryText || "Summary will appear here once available." }}
-            </p>
+            <div class="bg-[#E8F4F8] rounded-lg p-4">
+              <p class="text-gray-700">
+                {{ summaryText || "Summary will appear here once available." }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Language Detection -->
+          <div v-if="detectedLanguage" class="mt-2">
+            <span class="text-xs text-gray-500">Detected language: {{ detectedLanguage }}</span>
           </div>
 
           <!-- Go Back Button -->
@@ -88,6 +105,8 @@ const meeting = ref({});
 const attendees = ref([]);
 const audioUrl = ref(null);
 const summaryText = ref("");
+const transcriptionText = ref("");
+const detectedLanguage = ref("");
 const isPlaying = ref(false);
 const isRecordingActive = ref(false);
 const progressPercent = ref(0);
@@ -98,7 +117,23 @@ onMounted(async () => {
   const meetingId = route.params.id;
   console.log("Fetching data for meeting:", meetingId);
 
-  // ADD LOGIC HERE
+  // Check if meeting data was passed via route query
+  if (route.query.meetingData) {
+    try {
+      const data = JSON.parse(route.query.meetingData);
+      meeting.value = data;
+      attendees.value = data.students || [];
+      audioUrl.value = data.audio || null;
+      summaryText.value = data.summary || "";
+      transcriptionText.value = data.transcription || "";
+      detectedLanguage.value = data.language || "";
+      console.log("Loaded meeting data:", data);
+    } catch (e) {
+      console.error("Error parsing meeting data:", e);
+    }
+  }
+
+  // TODO: Fetch from backend/database using meetingId if not passed via query
 });
 
 // Audio controls
